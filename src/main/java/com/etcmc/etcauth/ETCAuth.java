@@ -4,9 +4,12 @@ import com.etcmc.etcauth.auth.AuthManager;
 import com.etcmc.etcauth.auth.PremiumChecker;
 import com.etcmc.etcauth.command.ChangePasswordCommand;
 import com.etcmc.etcauth.command.ETCAuthCommand;
+import com.etcmc.etcauth.command.ForgotPasswordCommand;
 import com.etcmc.etcauth.command.LoginCommand;
 import com.etcmc.etcauth.command.LogoutCommand;
 import com.etcmc.etcauth.command.RegisterCommand;
+import com.etcmc.etcauth.command.ResetPasswordCommand;
+import com.etcmc.etcauth.command.SetEmailCommand;
 import com.etcmc.etcauth.command.TwoFACommand;
 import com.etcmc.etcauth.database.AuditLog;
 import com.etcmc.etcauth.database.BackupTask;
@@ -17,6 +20,9 @@ import com.etcmc.etcauth.integration.ETCCoreBridge;
 import com.etcmc.etcauth.integration.Limbo;
 import com.etcmc.etcauth.integration.LuckPermsHook;
 import com.etcmc.etcauth.integration.SkinManager;
+import com.etcmc.etcauth.recovery.EmailService;
+import com.etcmc.etcauth.web.HttpServerHook;
+import com.etcmc.etcauth.web.Metrics;
 import com.etcmc.etcauth.listener.JoinQuitListener;
 import com.etcmc.etcauth.listener.PreLoginListener;
 import com.etcmc.etcauth.listener.RestrictionListener;
@@ -50,6 +56,10 @@ public final class ETCAuth extends JavaPlugin {
     private ETCCoreBridge etcCoreBridge;
     private Limbo limbo;
     private SkinManager skinManager;
+    private EmailService emailService;
+    private Metrics metrics;
+    private HttpServerHook httpServer;
+    private PasswordHasher hasher;
 
     @Override
     public void onEnable() {
@@ -80,6 +90,7 @@ public final class ETCAuth extends JavaPlugin {
         PasswordHasher hasher = new PasswordHasher(
             getConfig().getInt("auth.bcrypt-cost", 11),
             getConfig().getString("auth.password-pepper", ""));
+        this.hasher = hasher;
         authManager = new AuthManager(this, database, premiumChecker, hasher);
 
         // ---- Optional integrations ----
@@ -87,6 +98,10 @@ public final class ETCAuth extends JavaPlugin {
         etcCoreBridge = new ETCCoreBridge(this);
         limbo         = new Limbo(this);
         skinManager   = new SkinManager(this, database);
+        emailService  = new EmailService(this);
+        metrics       = new Metrics();
+        httpServer    = new HttpServerHook(this, metrics);
+        httpServer.start();
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             try {
@@ -109,6 +124,9 @@ public final class ETCAuth extends JavaPlugin {
         bind("logout",         new LogoutCommand(this, authManager));
         bind("changepassword", new ChangePasswordCommand(this, authManager));
         bind("2fa",            new TwoFACommand(this, authManager));
+        bind("setemail",       new SetEmailCommand(this, authManager));
+        bind("forgotpassword", new ForgotPasswordCommand(this, authManager, emailService));
+        bind("resetpassword",  new ResetPasswordCommand(this, authManager, hasher));
 
         ETCAuthCommand admin = new ETCAuthCommand(this, authManager);
         var adminCmd = getCommand("etcauth");
@@ -145,6 +163,7 @@ public final class ETCAuth extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (httpServer != null) httpServer.stop();
         PacketHook.disable();
         if (authManager != null) authManager.shutdownAll();
         if (database != null)    database.close();
@@ -195,4 +214,6 @@ public final class ETCAuth extends JavaPlugin {
     public ETCCoreBridge etcCoreBridge()   { return etcCoreBridge; }
     public Limbo limbo()                   { return limbo; }
     public SkinManager skinManager()       { return skinManager; }
+    public EmailService email()            { return emailService; }
+    public Metrics metrics()               { return metrics; }
 }

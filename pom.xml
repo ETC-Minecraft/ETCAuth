@@ -82,6 +82,13 @@
             </exclusions>
         </dependency>
 
+        <!-- Jakarta Mail (shaded) for password-recovery emails -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
         <!-- PacketEvents — optional, for early-handshake protection -->
         <dependency>
             <groupId>com.github.retrooper</groupId>
@@ -172,6 +179,18 @@
                                 <relocation>
                                     <pattern>org.apache.commons.codec</pattern>
                                     <shadedPattern>com.etcmc.etcauth.lib.codec</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>jakarta.mail</pattern>
+                                    <shadedPattern>com.etcmc.etcauth.lib.jakartamail</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>jakarta.activation</pattern>
+                                    <shadedPattern>com.etcmc.etcauth.lib.jakartaactivation</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.eclipse.angus</pattern>
+                                    <shadedPattern>com.etcmc.etcauth.lib.angus</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>

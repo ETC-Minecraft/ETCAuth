@@ -77,6 +77,10 @@ public final class Database {
             addColumnIfMissing("accounts", "totp_secret",    "TEXT");
             addColumnIfMissing("accounts", "skin_value",     "TEXT");
             addColumnIfMissing("accounts", "skin_signature", "TEXT");
+            // Phase 3: email recovery
+            addColumnIfMissing("accounts", "email",                "TEXT");
+            addColumnIfMissing("accounts", "reset_token",          "TEXT");
+            addColumnIfMissing("accounts", "reset_token_expires",  "INTEGER");
         }
     }
 
@@ -136,8 +140,9 @@ public final class Database {
             INSERT INTO accounts
                 (uuid, username, username_lower, password_hash, premium,
                  locked, last_ip, last_login_ms, created_ms, inventory_blob,
-                 totp_secret, skin_value, skin_signature)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 totp_secret, skin_value, skin_signature,
+                 email, reset_token, reset_token_expires)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, a.getUuid().toString());
@@ -153,6 +158,9 @@ public final class Database {
             ps.setString(11, a.getTotpSecret());
             ps.setString(12, a.getSkinValue());
             ps.setString(13, a.getSkinSignature());
+            ps.setString(14, a.getEmail());
+            ps.setString(15, a.getResetToken());
+            ps.setLong(16, a.getResetTokenExpiresMs());
             ps.executeUpdate();
         }
     }
@@ -162,7 +170,8 @@ public final class Database {
             UPDATE accounts SET
                 username = ?, password_hash = ?, premium = ?, locked = ?,
                 last_ip = ?, last_login_ms = ?, inventory_blob = ?,
-                totp_secret = ?, skin_value = ?, skin_signature = ?
+                totp_secret = ?, skin_value = ?, skin_signature = ?,
+                email = ?, reset_token = ?, reset_token_expires = ?
             WHERE uuid = ?
         """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -176,7 +185,10 @@ public final class Database {
             ps.setString(8, a.getTotpSecret());
             ps.setString(9, a.getSkinValue());
             ps.setString(10, a.getSkinSignature());
-            ps.setString(11, a.getUuid().toString());
+            ps.setString(11, a.getEmail());
+            ps.setString(12, a.getResetToken());
+            ps.setLong(13, a.getResetTokenExpiresMs());
+            ps.setString(14, a.getUuid().toString());
             ps.executeUpdate();
         }
     }
@@ -202,7 +214,42 @@ public final class Database {
             rs.getBytes("inventory_blob"),
             rs.getString("totp_secret"),
             rs.getString("skin_value"),
-            rs.getString("skin_signature")
+            rs.getString("skin_signature"),
+            rs.getString("email"),
+            rs.getString("reset_token"),
+            rs.getLong("reset_token_expires")
         );
+    }
+
+    /** Locate an account by reset token (for the password recovery flow). */
+    public Optional<Account> findByResetToken(String token) throws SQLException {
+        String sql = "SELECT * FROM accounts WHERE reset_token = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, token);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(read(rs)) : Optional.empty();
+            }
+        }
+    }
+
+    public int countAccounts() throws SQLException {
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM accounts")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+    public int countPremium() throws SQLException {
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM accounts WHERE premium = 1")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+    public int countTotpEnabled() throws SQLException {
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM accounts WHERE totp_secret IS NOT NULL")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
     }
 }

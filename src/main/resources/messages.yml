@@ -45,6 +45,20 @@ twofa:
   wrong-password: "<red>Wrong password."
   premium-no-password: "<red>Premium accounts cannot use password-based 2FA disable."
 
+recovery:
+  must-be-logged-in: "<red>You must be logged in first."
+  premium-no-email: "<gray>Premium accounts use Microsoft/Mojang for recovery."
+  setemail-usage: "<gray>Usage: <white>/setemail <email>"
+  bad-email: "<red>Invalid email address."
+  email-saved: "<green>Recovery email saved: <white>{email}</white>"
+  disabled: "<red>Email recovery is disabled on this server."
+  no-email: "<red>You don't have a recovery email set. Use <white>/setemail</white> first."
+  email-sent: "<green>A reset token has been sent to <white>{email}</white>."
+  email-fail: "<red>Could not send the recovery email. Contact an admin."
+  reset-usage: "<gray>Usage: <white>/resetpassword <token> <newPassword>"
+  bad-token: "<red>Invalid or expired reset token."
+  reset-ok: "<green>Password reset. You are now logged in."
+
 logout:
   success: "<gray>Logged out. You will need to /login next time."
   not-logged-in: "<red>You are not logged in."

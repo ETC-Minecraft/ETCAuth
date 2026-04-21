@@ -299,6 +299,7 @@ public final class AuthManager {
                 premiumPlayer.getAddress() != null
                     ? premiumPlayer.getAddress().getAddress().getHostAddress() : null,
                 "claimed-from-offline-uuid=" + existing.getUuid());
+            plugin.metrics().premiumClaims.incrementAndGet();
         } catch (SQLException e) {
             plugin.getLogger().severe("Premium claim failed: " + e.getMessage());
             return;

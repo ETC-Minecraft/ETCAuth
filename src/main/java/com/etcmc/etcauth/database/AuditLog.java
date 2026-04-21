@@ -83,4 +83,26 @@ public final class AuditLog {
         }
         return out;
     }
+
+    public List<Entry> recentAll(int limit) {
+        List<Entry> out = new ArrayList<>();
+        String sql = "SELECT ts, username, event, ip, detail FROM audit_log "
+                   + "ORDER BY ts DESC LIMIT ?";
+        try (PreparedStatement ps = db.raw().prepareStatement(sql)) {
+            ps.setInt(1, Math.max(1, Math.min(limit, 500)));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new Entry(
+                        rs.getLong("ts"),
+                        rs.getString("username"),
+                        rs.getString("event"),
+                        rs.getString("ip"),
+                        rs.getString("detail")));
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("audit_log query failed: " + e.getMessage());
+        }
+        return out;
+    }
 }

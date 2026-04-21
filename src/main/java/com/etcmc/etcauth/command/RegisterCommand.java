@@ -85,6 +85,7 @@ public final class RegisterCommand implements CommandExecutor {
             boolean ok = auth.register(player, pw);
             plugin.sync(player, () -> {
                 if (ok) {
+                    plugin.metrics().registrations.incrementAndGet();
                     plugin.messages().send(player, "register.success");
                     plugin.async(() -> {
                         try { plugin.luckPerms().applyOffline(player); } catch (Throwable ignored) {}

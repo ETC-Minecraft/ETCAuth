@@ -58,6 +58,7 @@ public final class LoginCommand implements CommandExecutor {
             plugin.sync(player, () -> {
                 switch (res) {
                     case OK -> {
+                        plugin.metrics().loginsOk.incrementAndGet();
                         plugin.messages().send(player, "login.success");
                         plugin.async(() -> {
                             try { plugin.luckPerms().applyOffline(player); } catch (Throwable ignored) {}
@@ -65,9 +66,12 @@ public final class LoginCommand implements CommandExecutor {
                         });
                         plugin.limbo().releaseFromLimbo(player, s);
                     }
-                    case NEEDS_2FA ->
+                    case NEEDS_2FA -> {
+                        plugin.metrics().loginsNeeds2fa.incrementAndGet();
                         plugin.messages().send(player, "login.needs-2fa");
+                    }
                     case FAILED -> {
+                        plugin.metrics().loginsFail.incrementAndGet();
                         int attempts = s.incrementFailed();
                         int max = plugin.getConfig().getInt("auth.max-login-attempts", 5);
                         int remaining = Math.max(0, max - attempts);

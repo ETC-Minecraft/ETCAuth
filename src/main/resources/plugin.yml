@@ -32,6 +32,17 @@ commands:
   2fa:
     description: Manage two-factor authentication (TOTP)
     usage: /2fa <setup|confirm|disable|code>
+  setemail:
+    description: Save a recovery email address
+    usage: /setemail <email>
+  forgotpassword:
+    description: Send a password reset token to your email
+    usage: /forgotpassword
+    aliases: [forgot]
+  resetpassword:
+    description: Reset your password with the emailed token
+    usage: /resetpassword <token> <newPassword>
+    aliases: [reset]
   etcauth:
     description: ETCAuth admin command
     usage: /etcauth <reload|info|unregister|forcelogin|premiumcheck> [args]

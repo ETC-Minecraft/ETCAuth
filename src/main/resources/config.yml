@@ -150,5 +150,29 @@ login-book:
   title: "ETCAuth"
   author: "ETCMC"
 
+# Embedded HTTP server: Prometheus metrics + read-only HTML dashboard.
+# Bind to 127.0.0.1 unless you front it with a reverse proxy. Leave the
+# dashboard credentials empty to disable the dashboard while keeping
+# /metrics available.
+web:
+  enabled: false
+  bind: "127.0.0.1"
+  port: 9229
+  dashboard-username: ""
+  dashboard-password: ""
+
+# Email-based password recovery (SMTP). When `enabled` is false, the
+# /forgotpassword command refuses to send anything.
+email:
+  enabled: false
+  host: ""
+  port: 587
+  starttls: true
+  ssl: false
+  username: ""
+  password: ""
+  from: ""
+  token-ttl-minutes: 30
+
 messages:
   prefix: "<dark_gray>[<gradient:#ffaa00:#ff5555>ETCAuth</gradient>]</dark_gray> "
