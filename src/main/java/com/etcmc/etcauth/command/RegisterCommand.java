@@ -69,14 +69,27 @@ public final class RegisterCommand implements CommandExecutor {
         // DB I/O off-main
         plugin.async(() -> {
             // Final guard against name-squatting: if Mojang says this name
-            // belongs to a premium account, we refuse to register.
+            // belongs to a premium account AND that owner has already joined
+            // this server at least once, we refuse to register. Until the
+            // premium owner connects for the first time, the name remains
+            // freely claimable by an offline registration.
             try {
                 Optional<UUID> premium = auth.resolvePremiumUuid(player.getName());
                 if (premium.isPresent()) {
-                    plugin.sync(player, () -> plugin.messages().send(player,
-                        "register.name-is-premium",
-                        Map.of("player", player.getName())));
-                    return;
+                    boolean ownerKnown;
+                    try {
+                        Optional<com.etcmc.etcauth.database.Account> ownerRecord =
+                            plugin.database().findByUuid(premium.get());
+                        ownerKnown = ownerRecord.isPresent() && ownerRecord.get().isPremium();
+                    } catch (Exception e) {
+                        ownerKnown = false;
+                    }
+                    if (ownerKnown) {
+                        plugin.sync(player, () -> plugin.messages().send(player,
+                            "register.name-is-premium",
+                            Map.of("player", player.getName())));
+                        return;
+                    }
                 }
             } catch (Exception ignored) {
                 // Failed lookup => don't block registration
