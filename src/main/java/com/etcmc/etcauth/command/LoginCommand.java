@@ -54,29 +54,34 @@ public final class LoginCommand implements CommandExecutor {
 
         String pw = args[0];
         plugin.async(() -> {
-            boolean ok = auth.login(player, pw);
+            AuthManager.LoginResult res = auth.login(player, pw);
             plugin.sync(player, () -> {
-                if (ok) {
-                    plugin.messages().send(player, "login.success");
-                    // Push state to LuckPerms / ETCCore
-                    plugin.async(() -> {
-                        try { plugin.luckPerms().applyOffline(player); } catch (Throwable ignored) {}
-                        try { plugin.etcCoreBridge().publish(player, s); } catch (Throwable ignored) {}
-                    });
-                } else {
-                    int attempts = s.incrementFailed();
-                    int max = plugin.getConfig().getInt("auth.max-login-attempts", 5);
-                    int remaining = Math.max(0, max - attempts);
-                    if (attempts >= max) {
-                        long cooldownMs = plugin.getConfig().getInt(
-                            "auth.failed-attempt-cooldown-seconds", 300) * 1000L;
-                        s.setFailedLockUntilMs(System.currentTimeMillis() + cooldownMs);
-                        s.resetFailedAttempts();
-                        player.kick(plugin.messages().kickMessage("login.too-many-attempts",
-                            Map.of("time", String.valueOf(cooldownMs / 1000L))));
-                    } else {
-                        plugin.messages().send(player, "login.wrong-password",
-                            Map.of("attempts", String.valueOf(remaining)));
+                switch (res) {
+                    case OK -> {
+                        plugin.messages().send(player, "login.success");
+                        plugin.async(() -> {
+                            try { plugin.luckPerms().applyOffline(player); } catch (Throwable ignored) {}
+                            try { plugin.etcCoreBridge().publish(player, s); } catch (Throwable ignored) {}
+                        });
+                        plugin.limbo().releaseFromLimbo(player, s);
+                    }
+                    case NEEDS_2FA ->
+                        plugin.messages().send(player, "login.needs-2fa");
+                    case FAILED -> {
+                        int attempts = s.incrementFailed();
+                        int max = plugin.getConfig().getInt("auth.max-login-attempts", 5);
+                        int remaining = Math.max(0, max - attempts);
+                        if (attempts >= max) {
+                            long cooldownMs = plugin.getConfig().getInt(
+                                "auth.failed-attempt-cooldown-seconds", 300) * 1000L;
+                            s.setFailedLockUntilMs(System.currentTimeMillis() + cooldownMs);
+                            s.resetFailedAttempts();
+                            player.kick(plugin.messages().kickMessage("login.too-many-attempts",
+                                Map.of("time", String.valueOf(cooldownMs / 1000L))));
+                        } else {
+                            plugin.messages().send(player, "login.wrong-password",
+                                Map.of("attempts", String.valueOf(remaining)));
+                        }
                     }
                 }
             });

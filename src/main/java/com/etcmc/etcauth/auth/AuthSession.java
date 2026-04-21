@@ -56,4 +56,14 @@ public final class AuthSession {
 
     public Location getFrozenLocation()         { return frozenLocation; }
     public void setFrozenLocation(Location loc) { this.frozenLocation = loc; }
+
+    /** Original location captured BEFORE teleport to the limbo world. */
+    private volatile Location preLimboLocation;
+    public Location getPreLimboLocation()         { return preLimboLocation; }
+    public void setPreLimboLocation(Location loc) { this.preLimboLocation = loc; }
+
+    /** True when password verified but a TOTP code is still required. */
+    private volatile boolean awaiting2fa;
+    public boolean isAwaiting2fa()           { return awaiting2fa; }
+    public void setAwaiting2fa(boolean v)    { this.awaiting2fa = v; }
 }

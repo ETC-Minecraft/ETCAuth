@@ -7,13 +7,16 @@ import com.etcmc.etcauth.command.ETCAuthCommand;
 import com.etcmc.etcauth.command.LoginCommand;
 import com.etcmc.etcauth.command.LogoutCommand;
 import com.etcmc.etcauth.command.RegisterCommand;
+import com.etcmc.etcauth.command.TwoFACommand;
 import com.etcmc.etcauth.database.AuditLog;
 import com.etcmc.etcauth.database.BackupTask;
 import com.etcmc.etcauth.database.Database;
 import com.etcmc.etcauth.integration.CacheWarmer;
 import com.etcmc.etcauth.integration.ETCAuthExpansion;
 import com.etcmc.etcauth.integration.ETCCoreBridge;
+import com.etcmc.etcauth.integration.Limbo;
 import com.etcmc.etcauth.integration.LuckPermsHook;
+import com.etcmc.etcauth.integration.SkinManager;
 import com.etcmc.etcauth.listener.JoinQuitListener;
 import com.etcmc.etcauth.listener.PreLoginListener;
 import com.etcmc.etcauth.listener.RestrictionListener;
@@ -45,6 +48,8 @@ public final class ETCAuth extends JavaPlugin {
     private PremiumChecker premiumChecker;
     private LuckPermsHook luckPerms;
     private ETCCoreBridge etcCoreBridge;
+    private Limbo limbo;
+    private SkinManager skinManager;
 
     @Override
     public void onEnable() {
@@ -80,6 +85,8 @@ public final class ETCAuth extends JavaPlugin {
         // ---- Optional integrations ----
         luckPerms     = new LuckPermsHook(this);
         etcCoreBridge = new ETCCoreBridge(this);
+        limbo         = new Limbo(this);
+        skinManager   = new SkinManager(this, database);
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             try {
@@ -101,6 +108,7 @@ public final class ETCAuth extends JavaPlugin {
         bind("login",          new LoginCommand(this, authManager));
         bind("logout",         new LogoutCommand(this, authManager));
         bind("changepassword", new ChangePasswordCommand(this, authManager));
+        bind("2fa",            new TwoFACommand(this, authManager));
 
         ETCAuthCommand admin = new ETCAuthCommand(this, authManager);
         var adminCmd = getCommand("etcauth");
@@ -185,4 +193,6 @@ public final class ETCAuth extends JavaPlugin {
     public PremiumChecker premiumChecker() { return premiumChecker; }
     public LuckPermsHook luckPerms()       { return luckPerms; }
     public ETCCoreBridge etcCoreBridge()   { return etcCoreBridge; }
+    public Limbo limbo()                   { return limbo; }
+    public SkinManager skinManager()       { return skinManager; }
 }

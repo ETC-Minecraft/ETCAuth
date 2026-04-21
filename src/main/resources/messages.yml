@@ -29,6 +29,21 @@ login:
   too-many-attempts: "<red>Too many failed attempts. Wait <white>{time}s</white> before trying again."
   timeout-kick: "Login timeout — you took too long to authenticate."
   usage: "<gray>Usage: <white>/login <password>"
+  needs-2fa: "<yellow>Password OK. Now enter your 2FA code with <white>/2fa <code></white>"
+
+twofa:
+  usage: "<gray>Usage: <white>/2fa <setup|confirm <code>|disable <password>|<code>>"
+  must-be-logged-in: "<red>You must be logged in to set up 2FA."
+  already-enabled: "<gray>2FA is already enabled on this account. Disable it first to re-setup."
+  not-enabled: "<gray>2FA is not enabled on this account."
+  setup-secret: "<gray>Your TOTP secret: <white>{secret}</white>"
+  setup-confirm-hint: "<gray>Open your authenticator app, scan or paste the link above, then run <white>/2fa confirm <code></white>"
+  no-pending-setup: "<red>No pending 2FA setup. Run <white>/2fa setup</white> first."
+  bad-code: "<red>Invalid 2FA code."
+  enabled: "<green>2FA enabled."
+  disabled: "<green>2FA disabled."
+  wrong-password: "<red>Wrong password."
+  premium-no-password: "<red>Premium accounts cannot use password-based 2FA disable."
 
 logout:
   success: "<gray>Logged out. You will need to /login next time."

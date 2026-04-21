@@ -64,6 +64,24 @@
             <version>0.10.2</version>
         </dependency>
 
+        <!-- TOTP / 2FA (shaded into final jar) -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+            <exclusions>
+                <!-- Exclude QR code rendering libraries; we only emit otpauth URIs -->
+                <exclusion>
+                    <groupId>com.google.zxing</groupId>
+                    <artifactId>core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.zxing</groupId>
+                    <artifactId>javase</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- PacketEvents — optional, for early-handshake protection -->
         <dependency>
             <groupId>com.github.retrooper</groupId>
@@ -146,6 +164,14 @@
                                 <relocation>
                                     <pattern>at.favre.lib.bytes</pattern>
                                     <shadedPattern>com.etcmc.etcauth.lib.bytes</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>dev.samstevens.totp</pattern>
+                                    <shadedPattern>com.etcmc.etcauth.lib.totp</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.commons.codec</pattern>
+                                    <shadedPattern>com.etcmc.etcauth.lib.codec</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>

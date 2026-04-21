@@ -29,6 +29,9 @@ commands:
     description: Change your account password
     usage: /changepassword <oldPassword> <newPassword>
     aliases: [changepw, cp]
+  2fa:
+    description: Manage two-factor authentication (TOTP)
+    usage: /2fa <setup|confirm|disable|code>
   etcauth:
     description: ETCAuth admin command
     usage: /etcauth <reload|info|unregister|forcelogin|premiumcheck> [args]

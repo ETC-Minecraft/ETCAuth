@@ -146,19 +146,48 @@ public final class AuthManager {
 
     /**
      * Verify the given password and mark the session as authenticated.
-     * @return true on successful login.
+     * <p>If the account has TOTP enabled, the session is moved into the
+     * {@code awaiting2fa=true} state instead of being fully
+     * authenticated, and the caller must wait for {@link #complete2faLogin}.
+     * @return outcome of the login attempt.
      */
-    public boolean login(Player player, String password) {
+    public LoginResult login(Player player, String password) {
         AuthSession session = getSession(player);
-        if (session == null || session.isPremium()) return false;
+        if (session == null || session.isPremium()) return LoginResult.FAILED;
 
         Optional<Account> opt = findAccount(player.getName());
-        if (opt.isEmpty()) return false;
+        if (opt.isEmpty()) return LoginResult.FAILED;
 
         Account acc = opt.get();
-        if (acc.isLocked()) return false;
-        if (!hasher.verify(password, acc.getPasswordHash())) return false;
+        if (acc.isLocked()) return LoginResult.FAILED;
+        if (!hasher.verify(password, acc.getPasswordHash())) return LoginResult.FAILED;
 
+        // 2FA gate
+        if (acc.getTotpSecret() != null) {
+            session.setAwaiting2fa(true);
+            return LoginResult.NEEDS_2FA;
+        }
+
+        finalizeLogin(player, session, acc);
+        return LoginResult.OK;
+    }
+
+    /** Called by TwoFACommand once the TOTP code matches. */
+    public void complete2faLogin(Player player, AuthSession session) {
+        Optional<Account> opt = findAccount(player.getName());
+        if (opt.isEmpty()) return;
+        session.setAwaiting2fa(false);
+        finalizeLogin(player, session, opt.get());
+        plugin.sync(player, () -> plugin.messages().send(player, "login.success"));
+        // Push integrations + release from limbo on the player thread.
+        plugin.async(() -> {
+            try { plugin.luckPerms().applyOffline(player); } catch (Throwable ignored) {}
+            try { plugin.etcCoreBridge().publish(player, session); } catch (Throwable ignored) {}
+        });
+        plugin.sync(player, () -> plugin.limbo().releaseFromLimbo(player, session));
+    }
+
+    private void finalizeLogin(Player player, AuthSession session, Account acc) {
         session.setState(AuthState.OFFLINE_AUTHENTICATED);
         session.resetFailedAttempts();
         try {
@@ -168,14 +197,21 @@ public final class AuthManager {
                 player.getAddress() != null ? player.getAddress().getAddress().getHostAddress() : null,
                 System.currentTimeMillis(),
                 acc.getCreatedEpochMs(),
-                acc.getInventoryBlob()));
+                acc.getInventoryBlob(),
+                acc.getTotpSecret(), acc.getSkinValue(), acc.getSkinSignature()));
         } catch (SQLException e) {
             plugin.getLogger().warning("Could not update last_login: " + e.getMessage());
         }
         recordIpSession(player);
         audit(player.getName(), "LOGIN", ipOf(player), null);
-        return true;
     }
+
+    /** Stand-alone password verifier used by TwoFACommand for the disable flow. */
+    public boolean verifyPassword(Account account, String password) {
+        return account.getPasswordHash() != null && hasher.verify(password, account.getPasswordHash());
+    }
+
+    public enum LoginResult { OK, NEEDS_2FA, FAILED }
 
     public boolean changePassword(Player player, String oldPw, String newPw) {
         AuthSession session = getSession(player);

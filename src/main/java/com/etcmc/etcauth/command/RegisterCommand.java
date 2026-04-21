@@ -90,6 +90,7 @@ public final class RegisterCommand implements CommandExecutor {
                         try { plugin.luckPerms().applyOffline(player); } catch (Throwable ignored) {}
                         try { plugin.etcCoreBridge().publish(player, s); } catch (Throwable ignored) {}
                     });
+                    plugin.limbo().releaseFromLimbo(player, s);
                 } else {
                     plugin.messages().send(player, "register.already-registered");
                 }

@@ -19,6 +19,9 @@ public final class Account {
     private final long lastLoginEpochMs;
     private final long createdEpochMs;
     private final byte[] inventoryBlob;      // serialized inventory from prior offline owner (claim payload)
+    private final String totpSecret;         // base32 TOTP secret, or null if 2FA disabled
+    private final String skinValue;          // Mojang textures property "value"
+    private final String skinSignature;      // Mojang textures property "signature"
 
     public Account(UUID uuid,
                    String username,
@@ -28,7 +31,10 @@ public final class Account {
                    String lastIp,
                    long lastLoginEpochMs,
                    long createdEpochMs,
-                   byte[] inventoryBlob) {
+                   byte[] inventoryBlob,
+                   String totpSecret,
+                   String skinValue,
+                   String skinSignature) {
         this.uuid = uuid;
         this.username = username;
         this.passwordHash = passwordHash;
@@ -38,6 +44,24 @@ public final class Account {
         this.lastLoginEpochMs = lastLoginEpochMs;
         this.createdEpochMs = createdEpochMs;
         this.inventoryBlob = inventoryBlob;
+        this.totpSecret = totpSecret;
+        this.skinValue = skinValue;
+        this.skinSignature = skinSignature;
+    }
+
+    /** Convenience constructor for callers that don't touch TOTP/skin. */
+    public Account(UUID uuid,
+                   String username,
+                   String passwordHash,
+                   boolean premium,
+                   boolean locked,
+                   String lastIp,
+                   long lastLoginEpochMs,
+                   long createdEpochMs,
+                   byte[] inventoryBlob) {
+        this(uuid, username, passwordHash, premium, locked, lastIp,
+             lastLoginEpochMs, createdEpochMs, inventoryBlob,
+             null, null, null);
     }
 
     public UUID getUuid()              { return uuid; }
@@ -49,4 +73,21 @@ public final class Account {
     public long getLastLoginEpochMs()  { return lastLoginEpochMs; }
     public long getCreatedEpochMs()    { return createdEpochMs; }
     public byte[] getInventoryBlob()   { return inventoryBlob; }
+    public String getTotpSecret()      { return totpSecret; }
+    public String getSkinValue()       { return skinValue; }
+    public String getSkinSignature()   { return skinSignature; }
+
+    /** Return a copy with the given TOTP secret applied. */
+    public Account withTotpSecret(String secret) {
+        return new Account(uuid, username, passwordHash, premium, locked,
+            lastIp, lastLoginEpochMs, createdEpochMs, inventoryBlob,
+            secret, skinValue, skinSignature);
+    }
+
+    /** Return a copy with the given skin properties applied. */
+    public Account withSkin(String value, String signature) {
+        return new Account(uuid, username, passwordHash, premium, locked,
+            lastIp, lastLoginEpochMs, createdEpochMs, inventoryBlob,
+            totpSecret, value, signature);
+    }
 }

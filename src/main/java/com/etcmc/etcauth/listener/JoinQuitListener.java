@@ -57,6 +57,10 @@ public final class JoinQuitListener implements Listener {
                         plugin.getLogger().warning("Could not create premium stub: " + e.getMessage());
                     }
                 }
+                // Snapshot the premium player's textures for future offline-mode reuse.
+                if (plugin.skinManager() != null) {
+                    plugin.skinManager().fetchAndStore(player.getName(), player.getUniqueId());
+                }
             });
             plugin.messages().send(player, "join.welcome-premium",
                 Map.of("player", player.getName()));
@@ -70,6 +74,7 @@ public final class JoinQuitListener implements Listener {
             plugin.messages().send(player, "join.auto-login-ip",
                 Map.of("player", player.getName()));
             applyIntegrations(player, session);
+            applyStoredSkin(player);
             return;
         }
 
@@ -85,7 +90,25 @@ public final class JoinQuitListener implements Listener {
                        "player", player.getName()));
         }
 
+        // Apply previously cached skin (if any) so the offline player still
+        // looks like themselves while in limbo.
+        applyStoredSkin(player);
+
+        // Send to limbo (if enabled) and open the welcome book.
+        plugin.limbo().sendToLimbo(player, session);
+        com.etcmc.etcauth.util.LoginBook.open(plugin, player, session);
+
         scheduleLoginTimeout(player, session);
+    }
+
+    private void applyStoredSkin(Player player) {
+        if (plugin.skinManager() == null) return;
+        plugin.async(() -> {
+            Optional<Account> opt = auth.findAccount(player.getName());
+            if (opt.isEmpty() || opt.get().getSkinValue() == null) return;
+            player.getScheduler().run(plugin,
+                t -> plugin.skinManager().apply(player, opt.get()), null);
+        });
     }
 
     /**

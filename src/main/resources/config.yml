@@ -115,5 +115,40 @@ luckperms:
 audit:
   enabled: true
 
+# Limbo world: physically isolate unauthenticated players.
+# When enabled, every joining player whose session is not yet
+# authenticated is teleported to the configured spawn point. On
+# successful login they are returned to where they were before.
+# If `world` does not exist on the server, ETCAuth will try to load it
+# via ETCWorlds (if installed) or fall back to creating a vanilla world
+# with the given name.
+limbo:
+  enabled: false
+  world: limbo
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+# Two-factor authentication (TOTP). Requires no extra setup; once a
+# player runs `/2fa setup` they will be prompted for a code on every
+# subsequent login.
+twofa:
+  enabled: true
+
+# Skin persistence: cache the textures property of any premium player
+# the first time they join. If the same name later authenticates as
+# offline (e.g. after a name change), the stored skin is re-applied so
+# the player still looks correct in offline mode.
+skin:
+  enabled: true
+
+# Welcome book opened on join with clickable [register]/[login] hints.
+login-book:
+  enabled: true
+  title: "ETCAuth"
+  author: "ETCMC"
+
 messages:
   prefix: "<dark_gray>[<gradient:#ffaa00:#ff5555>ETCAuth</gradient>]</dark_gray> "

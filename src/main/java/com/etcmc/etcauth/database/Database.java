@@ -66,10 +66,29 @@ public final class Database {
                     last_ip            TEXT,
                     last_login_ms      INTEGER NOT NULL DEFAULT 0,
                     created_ms         INTEGER NOT NULL DEFAULT 0,
-                    inventory_blob     BLOB
+                    inventory_blob     BLOB,
+                    totp_secret        TEXT,
+                    skin_value         TEXT,
+                    skin_signature     TEXT
                 )
             """);
             st.execute("CREATE INDEX IF NOT EXISTS idx_username_lower ON accounts(username_lower)");
+            // Idempotent migrations for installs that pre-date Phase 2 columns.
+            addColumnIfMissing("accounts", "totp_secret",    "TEXT");
+            addColumnIfMissing("accounts", "skin_value",     "TEXT");
+            addColumnIfMissing("accounts", "skin_signature", "TEXT");
+        }
+    }
+
+    private void addColumnIfMissing(String table, String column, String type) throws SQLException {
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) {
+                if (column.equalsIgnoreCase(rs.getString("name"))) return;
+            }
+        }
+        try (Statement st = connection.createStatement()) {
+            st.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
         }
     }
 
@@ -116,8 +135,9 @@ public final class Database {
         String sql = """
             INSERT INTO accounts
                 (uuid, username, username_lower, password_hash, premium,
-                 locked, last_ip, last_login_ms, created_ms, inventory_blob)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 locked, last_ip, last_login_ms, created_ms, inventory_blob,
+                 totp_secret, skin_value, skin_signature)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, a.getUuid().toString());
@@ -130,6 +150,9 @@ public final class Database {
             ps.setLong(8, a.getLastLoginEpochMs());
             ps.setLong(9, a.getCreatedEpochMs());
             ps.setBytes(10, a.getInventoryBlob());
+            ps.setString(11, a.getTotpSecret());
+            ps.setString(12, a.getSkinValue());
+            ps.setString(13, a.getSkinSignature());
             ps.executeUpdate();
         }
     }
@@ -138,7 +161,8 @@ public final class Database {
         String sql = """
             UPDATE accounts SET
                 username = ?, password_hash = ?, premium = ?, locked = ?,
-                last_ip = ?, last_login_ms = ?, inventory_blob = ?
+                last_ip = ?, last_login_ms = ?, inventory_blob = ?,
+                totp_secret = ?, skin_value = ?, skin_signature = ?
             WHERE uuid = ?
         """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -149,7 +173,10 @@ public final class Database {
             ps.setString(5, a.getLastIp());
             ps.setLong(6, a.getLastLoginEpochMs());
             ps.setBytes(7, a.getInventoryBlob());
-            ps.setString(8, a.getUuid().toString());
+            ps.setString(8, a.getTotpSecret());
+            ps.setString(9, a.getSkinValue());
+            ps.setString(10, a.getSkinSignature());
+            ps.setString(11, a.getUuid().toString());
             ps.executeUpdate();
         }
     }
@@ -172,7 +199,10 @@ public final class Database {
             rs.getString("last_ip"),
             rs.getLong("last_login_ms"),
             rs.getLong("created_ms"),
-            rs.getBytes("inventory_blob")
+            rs.getBytes("inventory_blob"),
+            rs.getString("totp_secret"),
+            rs.getString("skin_value"),
+            rs.getString("skin_signature")
         );
     }
 }
