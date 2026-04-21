@@ -156,7 +156,13 @@ public final class ETCAuth extends JavaPlugin {
         new CacheWarmer(this).warm();
 
         // Optional: PacketEvents-based early-handshake protection
-        PacketHook.tryEnable(this);
+        if (getServer().getPluginManager().getPlugin("packetevents") != null) {
+            try {
+                PacketHook.tryEnable(this);
+            } catch (Throwable t) {
+                getLogger().warning("PacketEvents hook failed to initialize: " + t.getMessage());
+            }
+        }
 
         getLogger().info("ETCAuth enabled — Folia hybrid authentication active.");
     }
@@ -164,7 +170,9 @@ public final class ETCAuth extends JavaPlugin {
     @Override
     public void onDisable() {
         if (httpServer != null) httpServer.stop();
-        PacketHook.disable();
+        if (getServer().getPluginManager().getPlugin("packetevents") != null) {
+            try { PacketHook.disable(); } catch (Throwable ignored) {}
+        }
         if (authManager != null) authManager.shutdownAll();
         if (database != null)    database.close();
         getLogger().info("ETCAuth disabled.");
