@@ -178,6 +178,24 @@ public final class PremiumHandshake {
                 }
                 if (premium.isEmpty()) return; // unknown name -> let vanilla handle as offline
 
+                // Only force the encryption handshake when our DB already knows
+                // the premium owner of this name. Until that owner has joined
+                // at least once (and been recorded as premium), the name is
+                // free to be claimed by an offline registration. As soon as
+                // the real premium owner connects, the existing claim flow in
+                // JoinQuitListener locks the offline account.
+                boolean ownerKnown;
+                try {
+                    var acc = plugin.database().findByUuid(premium.get());
+                    ownerKnown = acc.isPresent() && acc.get().isPremium();
+                } catch (Throwable t) {
+                    ownerKnown = false;
+                }
+                if (!ownerKnown) {
+                    driven.remove(channelObj); // allow normal offline path to proceed
+                    return;
+                }
+
                 // Drive the vanilla listener into the online branch.
                 try {
                     driveOnlineBranch(ch, username);
