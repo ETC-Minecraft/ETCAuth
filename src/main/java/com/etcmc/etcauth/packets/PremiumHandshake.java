@@ -110,7 +110,7 @@ public final class PremiumHandshake {
             hello = Class.forName("net.minecraft.network.protocol.login.ClientboundHelloPacket");
             hctor = findHelloCtor(hello);
 
-            listenerF  = findField(conn, listener.getSuperclass(), listener);
+            listenerF  = findListenerField(conn);
             userF      = findFieldByNames(listener, "requestedUsername", "username", "name");
             challF     = findFieldByType(listener, byte[].class);
             stateF     = findFieldByType(listener, state);
@@ -271,8 +271,37 @@ public final class PremiumHandshake {
         return best;
     }
 
+    private static Field findListenerField(Class<?> conn) throws NoSuchFieldException {
+        // Prefer known mojang-mapped name first.
+        for (String n : new String[]{"packetListener", "listener", "e"}) {
+            try {
+                Field f = conn.getDeclaredField(n);
+                if (!java.lang.reflect.Modifier.isStatic(f.getModifiers())
+                    && !f.getType().getName().contains("Logger")) {
+                    f.setAccessible(true);
+                    return f;
+                }
+            } catch (NoSuchFieldException ignored) { }
+        }
+        Class<?> packetListenerIface;
+        try {
+            packetListenerIface = Class.forName("net.minecraft.network.PacketListener");
+        } catch (ClassNotFoundException e) {
+            throw new NoSuchFieldException("PacketListener interface not found");
+        }
+        for (Field f : conn.getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+            if (packetListenerIface.isAssignableFrom(f.getType())) {
+                f.setAccessible(true);
+                return f;
+            }
+        }
+        throw new NoSuchFieldException("packet listener field on " + conn.getName());
+    }
+
     private static Field findField(Class<?> conn, Class<?>... acceptableTypes) throws NoSuchFieldException {
         for (Field f : conn.getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
             for (Class<?> t : acceptableTypes) {
                 if (t != null && t.isAssignableFrom(f.getType())) {
                     f.setAccessible(true); return f;
@@ -292,6 +321,7 @@ public final class PremiumHandshake {
         for (String n : names) {
             try {
                 Field f = owner.getDeclaredField(n);
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
                 f.setAccessible(true);
                 return f;
             } catch (NoSuchFieldException ignored) { }
@@ -301,6 +331,7 @@ public final class PremiumHandshake {
 
     private static Field findFieldByType(Class<?> owner, Class<?> type) throws NoSuchFieldException {
         for (Field f : owner.getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
             if (f.getType() == type) {
                 f.setAccessible(true);
                 return f;
