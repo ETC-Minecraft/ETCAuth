@@ -1,0 +1,119 @@
+# =====================================================================
+# ETCAuth — Hybrid authentication for Folia
+# =====================================================================
+# This plugin assumes the server runs with `online-mode=false` so that
+# both premium and non-premium clients can connect. Premium players are
+# verified by querying Mojang's API and matching their UUID.
+#
+# IMPORTANT: With `online-mode=false` alone, a malicious client can spoof
+# any UUID. ETCAuth mitigates this by:
+#   1. Resolving the canonical premium UUID for the username via Mojang.
+#   2. If the connecting UUID matches the premium UUID, the player is
+#      treated as premium (no password required).
+#   3. Otherwise the player is treated as offline and must register/login.
+# For full cryptographic verification of premium clients, a packet-level
+# session check (PacketEvents) is required — that is planned for a
+# future release.
+# =====================================================================
+
+auth:
+  # Seconds a non-premium player has to /login or /register before kick
+  login-timeout-seconds: 60
+
+  # Maximum failed /login attempts before kick
+  max-login-attempts: 5
+
+  # Cooldown (seconds) after max attempts reached before they can retry
+  failed-attempt-cooldown-seconds: 300
+
+  # Minimum and maximum password length
+  password-min-length: 6
+  password-max-length: 64
+
+  # BCrypt cost factor (10–12 is sane; higher = slower hashing)
+  bcrypt-cost: 11
+
+  # Optional global pepper appended to passwords before hashing.
+  # If you change this after accounts exist, ALL existing passwords break.
+  # Leave empty to disable. For best security, set this to a long random
+  # string and treat it as a master key (never check it into git).
+  password-pepper: ""
+
+  # Auto-login by IP: if a registered player reconnects from the same IP
+  # within `session-duration-minutes`, skip the /login prompt
+  session-by-ip: true
+  session-duration-minutes: 720   # 12 hours
+
+premium:
+  # Verify premium status via Mojang API on prelogin
+  enabled: true
+
+  # HTTP timeout for Mojang API requests (ms)
+  api-timeout-ms: 4000
+
+  # Cache premium-uuid lookups for this many minutes (reduces API calls)
+  cache-minutes: 60
+
+  # On startup, pre-resolve UUIDs for the most-recently-active accounts
+  # so the cache is hot before the first connection
+  prewarm-cache: true
+  prewarm-count: 100
+
+  # Policy when a premium player joins with a username that is already
+  # registered as an offline account:
+  #   take-over   = premium claims the name; offline data is given to them,
+  #                 the offline account is permanently locked.
+  #   block       = kick the premium player with a message (not recommended)
+  #   coexist     = let both exist with separate UUIDs (NOT recommended,
+  #                 will cause data inconsistencies)
+  collision-policy: take-over
+
+restrictions:
+  # While not authenticated, block these actions
+  block-movement: true
+  block-chat: true
+  block-commands: true
+  # Commands always allowed before authentication
+  allowed-commands:
+    - login
+    - l
+    - register
+    - reg
+
+  # Damage / interaction protection while not authenticated
+  block-damage: true
+  block-interact: true
+
+storage:
+  # SQLite file (stored under plugins/ETCAuth/)
+  file: accounts.db
+
+# Packet-level hardening (requires PacketEvents plugin installed).
+# Silently disables itself if PacketEvents is not present.
+packets:
+  enabled: true
+  # Sliding window for connection-attempt counting
+  window-seconds: 30
+  max-attempts-per-window: 5
+  # When the limit is hit, block the IP from connecting for this long
+  cooldown-seconds: 120
+
+# Backups of the SQLite database to plugins/ETCAuth/backups/
+backup:
+  enabled: true
+  interval-hours: 12
+  # Number of backup files to retain (older ones are deleted)
+  keep: 14
+
+# LuckPerms integration (optional). Empty group names disable that side.
+luckperms:
+  enabled: true
+  premium-group: ""
+  offline-group: ""
+
+# Audit log (history command, forensics).
+audit:
+  enabled: true
+
+messages:
+  prefix: "<dark_gray>[<gradient:#ffaa00:#ff5555>ETCAuth</gradient>]</dark_gray> "

@@ -1,0 +1,43 @@
+name: ETCAuth
+version: '${project.version}'
+main: com.etcmc.etcauth.ETCAuth
+api-version: '1.21'
+folia-supported: true
+description: Hybrid authentication for premium and offline players
+authors:
+  - ETCMC
+softdepend:
+  - packetevents
+  - floodgate
+  - LuckPerms
+  - PlaceholderAPI
+  - ETCCore
+
+commands:
+  register:
+    description: Register a new offline account
+    usage: /register <password> <confirmPassword>
+    aliases: [reg]
+  login:
+    description: Log in to your account
+    usage: /login <password>
+    aliases: [l]
+  logout:
+    description: Log out of your account
+    usage: /logout
+  changepassword:
+    description: Change your account password
+    usage: /changepassword <oldPassword> <newPassword>
+    aliases: [changepw, cp]
+  etcauth:
+    description: ETCAuth admin command
+    usage: /etcauth <reload|info|unregister|forcelogin|premiumcheck> [args]
+    permission: etcauth.admin
+
+permissions:
+  etcauth.admin:
+    description: Admin access to ETCAuth management commands
+    default: op
+  etcauth.bypass:
+    description: Bypass authentication entirely (use with care)
+    default: false

@@ -1,0 +1,55 @@
+# All messages support MiniMessage formatting.
+# Placeholders: {player}, {time}, {attempts}, {max}, {min}, {old}, {new}
+
+prelogin:
+  premium-verification-failed: "<red>Could not verify premium status. Try again in a moment."
+  account-locked: "<red>This account is permanently locked (claimed by its premium owner)."
+
+join:
+  welcome-premium: "<green>Welcome back, <white>{player}</white>! Premium session verified."
+  welcome-offline-register: "<yellow>Please register with <white>/register <password> <password></white>"
+  welcome-offline-login: "<yellow>Please log in with <white>/login <password></white>. You have <white>{time}s</white>."
+  auto-login-ip: "<green>Welcome back, <white>{player}</white>! Auto-login from saved session."
+
+register:
+  success: "<green>Account registered. You are now logged in."
+  already-registered: "<red>You are already registered. Use /login instead."
+  premium-cannot-register: "<red>Premium accounts do not need to register."
+  password-mismatch: "<red>Passwords do not match."
+  password-too-short: "<red>Password must be at least <white>{min}</white> characters."
+  password-too-long: "<red>Password must be at most <white>{max}</white> characters."
+  name-is-premium: "<red>The username <white>{player}</white> belongs to a premium account. You cannot register it."
+  usage: "<gray>Usage: <white>/register <password> <confirmPassword>"
+
+login:
+  success: "<green>Logged in successfully."
+  not-registered: "<red>You are not registered. Use <white>/register <password> <password></white>"
+  already-logged-in: "<gray>You are already logged in."
+  wrong-password: "<red>Wrong password. Attempts left: <white>{attempts}</white>"
+  too-many-attempts: "<red>Too many failed attempts. Wait <white>{time}s</white> before trying again."
+  timeout-kick: "Login timeout — you took too long to authenticate."
+  usage: "<gray>Usage: <white>/login <password>"
+
+logout:
+  success: "<gray>Logged out. You will need to /login next time."
+  not-logged-in: "<red>You are not logged in."
+
+change-password:
+  success: "<green>Password changed."
+  wrong-old: "<red>Old password is incorrect."
+  usage: "<gray>Usage: <white>/changepassword <oldPassword> <newPassword>"
+  premium-no-password: "<red>Premium accounts have no password to change."
+
+restriction:
+  blocked: "<red>You must log in first."
+
+admin:
+  reload: "<green>Configuration reloaded."
+  info-header: "<gray>--- ETCAuth account: <white>{player}</white> ---"
+  info-line: "<gray>{key}: <white>{value}"
+  not-found: "<red>No account found for <white>{player}</white>."
+  unregistered: "<green>Unregistered account: <white>{player}</white>."
+  forced-login: "<green>Forced login: <white>{player}</white>."
+  premium-check-result: "<gray>Mojang says <white>{player}</white> = <white>{uuid}</white>"
+  premium-check-not-premium: "<gray>{player} is not a premium account."
+  usage: "<gray>Usage: <white>/etcauth <reload|info|unregister|forcelogin|premiumcheck> [player]"
