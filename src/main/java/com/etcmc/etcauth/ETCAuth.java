@@ -156,12 +156,41 @@ public final class ETCAuth extends JavaPlugin {
         new CacheWarmer(this).warm();
 
         // Optional: PacketEvents-based early-handshake protection
-        if (getServer().getPluginManager().getPlugin("packetevents") != null) {
+        boolean packetEventsPresent = getServer().getPluginManager().getPlugin("packetevents") != null;
+        if (packetEventsPresent) {
             try {
                 PacketHook.tryEnable(this);
             } catch (Throwable t) {
                 getLogger().warning("PacketEvents hook failed to initialize: " + t.getMessage());
             }
+        }
+
+        boolean onlineMode = getServer().getOnlineMode();
+        boolean nativeHandshakeWanted = getConfig().getBoolean("premium.native-handshake", true);
+        boolean nativeHandshakeActive = packetEventsPresent && nativeHandshakeWanted;
+
+        if (!onlineMode && getConfig().getBoolean("premium.enabled", true)
+                && !nativeHandshakeActive) {
+            getLogger().warning("=================================================================");
+            getLogger().warning(" Server is online-mode=false and there is NO trustworthy premium");
+            getLogger().warning(" UUID source available:");
+            if (!packetEventsPresent) {
+                getLogger().warning("   * PacketEvents plugin is NOT installed.");
+                getLogger().warning("     Download from: https://github.com/retrooper/packetevents/releases");
+                getLogger().warning("     and place packetevents-spigot-x.y.z.jar in plugins/.");
+            }
+            if (!nativeHandshakeWanted) {
+                getLogger().warning("   * premium.native-handshake is set to false in config.yml");
+            }
+            getLogger().warning(" Without the native handshake, ETCAuth CANNOT cryptographically");
+            getLogger().warning(" verify premium ownership. To avoid impersonation, premium");
+            getLogger().warning(" auto-claim is being disabled. Every player will need to");
+            getLogger().warning(" /register and /login until you install PacketEvents (or run");
+            getLogger().warning(" the server in online-mode=true / behind a proxy).");
+            getLogger().warning("=================================================================");
+            // Hard-disable premium for this run so PreLoginListener takes the
+            // safe force-offline branch even if the user left enabled=true.
+            getConfig().set("premium.enabled", false);
         }
 
         getLogger().info("ETCAuth enabled — Folia hybrid authentication active.");
