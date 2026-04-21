@@ -50,6 +50,15 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Netty — provided by the server at runtime; needed at compile
+             time only for the PremiumHandshake reflection bridge. -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport</artifactId>
+            <version>4.1.108.Final</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- SQLite driver (shaded into final jar) -->
         <dependency>
             <groupId>org.xerial</groupId>

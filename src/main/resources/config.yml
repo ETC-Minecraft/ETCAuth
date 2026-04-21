@@ -45,8 +45,28 @@ auth:
   session-duration-minutes: 720   # 12 hours
 
 premium:
-  # Verify premium status via Mojang API on prelogin
+  # Verify premium status via Mojang API on prelogin.
+  # When `enabled: false`, ETCAuth treats every connecting player as offline
+  # (registration + /login required). Use this if your server runs with
+  # `online-mode=false` AND you do NOT have a proxy (Velocity/BungeeGuard) or
+  # FastLogin in front. Without one of those, the server cannot cryptographically
+  # tell a real premium owner apart from someone using their nickname, so
+  # auto-premium would either kick legitimate users or let impostors in.
   enabled: true
+
+  # When true, ETCAuth force-disables premium auto-claim if the server is in
+  # online-mode=false AND no trustworthy UUID source is available (no proxy,
+  # no native handshake). With `native-handshake` enabled below, ETCAuth IS a
+  # trustworthy source, so the default is now safe to keep at false.
+  require-online-mode-for-claim: false
+
+  # Native premium handshake (recommended). When true, ETCAuth + PacketEvents
+  # drive the server's own login listener into the online-mode branch so
+  # premium clients are cryptographically verified against Mojang even though
+  # the server itself runs with online-mode=false. This lets premium players
+  # join without /register or /login, while non-premium players still go
+  # through the offline auth flow. Requires PacketEvents to be installed.
+  native-handshake: true
 
   # HTTP timeout for Mojang API requests (ms)
   api-timeout-ms: 4000

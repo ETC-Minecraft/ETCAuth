@@ -76,6 +76,18 @@ public final class PacketHook {
                 .reEncodeByDefault(false);
             PacketEvents.getAPI().load();
             PacketEvents.getAPI().getEventManager().registerListener(hook.buildListener());
+
+            // Native premium handshake: drives vanilla LoginListener into
+            // the online branch even when server is online-mode=false.
+            if (plugin.getConfig().getBoolean("premium.native-handshake", true)) {
+                PremiumHandshake premium = new PremiumHandshake(plugin);
+                if (premium.isReady()) {
+                    PacketEvents.getAPI().getEventManager().registerListener(premium.listener());
+                } else {
+                    plugin.getLogger().warning("Native premium handshake disabled — NMS reflection unsupported on this server build.");
+                }
+            }
+
             PacketEvents.getAPI().init();
             plugin.getLogger().info("PacketEvents hook active — early-handshake protection enabled.");
             return true;

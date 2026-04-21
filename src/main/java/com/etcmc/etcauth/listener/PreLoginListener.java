@@ -67,6 +67,34 @@ public final class PreLoginListener implements Listener {
             return;
         }
 
+        // Determine whether premium auto-claim is even possible. Without
+        // online-mode (or a forwarding proxy / FastLogin), we cannot tell a
+        // genuine premium owner apart from someone using their name, because
+        // the server hands out a deterministic offline UUID for every login.
+        boolean premiumEnabled = plugin.getConfig().getBoolean("premium.enabled", true);
+        boolean requireOnline = plugin.getConfig().getBoolean("premium.require-online-mode-for-claim", true);
+        boolean canTrustUuid  = plugin.getServer().getOnlineMode();
+        boolean premiumActive = premiumEnabled && (!requireOnline || canTrustUuid);
+
+        if (!premiumActive) {
+            // Force-offline mode: every Java client (including premium owners)
+            // must /register + /login. No Mojang lookup, no impersonation kick.
+            Optional<Account> existingOff = auth.findAccount(username);
+            AuthState initOff;
+            if (existingOff.isPresent()) {
+                if (existingOff.get().isLocked()) {
+                    ev.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+                        mm.deserialize(plugin.messages().raw("prelogin.account-locked")));
+                    return;
+                }
+                initOff = AuthState.AWAITING_LOGIN;
+            } else {
+                initOff = AuthState.AWAITING_REGISTER;
+            }
+            auth.registerSession(new AuthSession(connectingUuid, username, ip, initOff, false));
+            return;
+        }
+
         // 1) Resolve premium UUID from Mojang
         Optional<UUID> premiumUuid;
         try {
