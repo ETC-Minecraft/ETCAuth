@@ -4,6 +4,7 @@ import com.etcmc.etcauth.ETCAuth;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
+import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.wrapper.login.client.WrapperLoginClientLoginStart;
 import io.netty.channel.Channel;
@@ -89,6 +90,19 @@ public final class PremiumHandshake {
     // Per-channel suppression so we don't double-handle the same handshake
     private final Map<Channel, Boolean> driven = new ConcurrentHashMap<>();
 
+    // Channels that we've driven into the online branch and are waiting to
+    // see whether the Mojang session check succeeds (LOGIN_SUCCESS) or the
+    // connection drops (treated as failure → cache name to skip handshake
+    // on the next attempt). Maps channel → username.
+    private final Map<Channel, String> awaitingOutcome = new ConcurrentHashMap<>();
+
+    // username (lowercase) → expiry epoch ms. While present, we skip the
+    // handshake for that name so the user can join in offline mode after
+    // a previous "session not valid" failure (typical for non-premium
+    // players whose name happens to belong to a Mojang account).
+    private final Map<String, Long> recentFailures = new ConcurrentHashMap<>();
+    private static final long FAILURE_COOLDOWN_MS = 5L * 60L * 1000L;
+
     public PremiumHandshake(ETCAuth plugin) {
         this.plugin = plugin;
         Class<?> conn = null, listener = null, state = null, hello = null;
@@ -168,6 +182,20 @@ public final class PremiumHandshake {
                 } catch (Throwable t) { return; }
                 if (username == null || !VALID_NAME.matcher(username).matches()) return;
 
+                // If this name recently failed the Mojang session check
+                // (typical for a non-premium player using a name that happens
+                // to belong to a Mojang account), let them in via the offline
+                // path instead of kicking them again with "session not valid".
+                String key = username.toLowerCase();
+                Long expiry = recentFailures.get(key);
+                if (expiry != null) {
+                    if (expiry > System.currentTimeMillis()) {
+                        driven.remove(channelObj);
+                        return; // skip handshake → vanilla offline path
+                    }
+                    recentFailures.remove(key);
+                }
+
                 // Premium check (uses cached Mojang lookup; blocks at most a few ms).
                 Optional<UUID> premium;
                 try {
@@ -176,39 +204,51 @@ public final class PremiumHandshake {
                     plugin.getLogger().fine("Mojang lookup failed for " + username + ": " + t.getMessage());
                     return;
                 }
-                if (premium.isEmpty()) return; // unknown name -> let vanilla handle as offline
-
-                // Only force the encryption handshake when our DB already
-                // knows the premium owner of this name. Until that owner
-                // has been recorded (via a previous successful join, or
-                // pre-seeded by an admin with /etcauth claim <name>), the
-                // name is freely claimable offline. Forcing the handshake
-                // unconditionally on every Mojang-premium name would kick
-                // legitimate non-premium users with the dreaded "sesión no
-                // es válida" since their client has no Mojang session.
-                boolean ownerKnown;
-                try {
-                    var acc = plugin.database().findByUuid(premium.get());
-                    ownerKnown = acc.isPresent() && acc.get().isPremium();
-                } catch (Throwable t) {
-                    ownerKnown = false;
-                }
-                if (!ownerKnown) {
-                    driven.remove(channelObj); // allow normal offline path
-                    return;
+                if (premium.isEmpty()) {
+                    driven.remove(channelObj);
+                    return; // not a premium name → offline path
                 }
 
-                // Drive the vanilla listener into the online branch.
+                // Always drive the encryption handshake for Mojang-premium
+                // names. Two outcomes:
+                //   • Real owner connects → Mojang hasJoined returns OK,
+                //     vanilla logs them in, JoinQuitListener auto-claims
+                //     the account as premium in our DB.
+                //   • Non-premium client connects → hasJoined returns null,
+                //     vanilla disconnects with "session not valid". Our
+                //     close-future listener caches that failure so the very
+                //     next reconnection skips the handshake and lets the
+                //     player in offline.
                 try {
                     driveOnlineBranch(ch, username);
-                    // Cancel: we've already sent the EncryptionRequest. We don't
-                    // want vanilla's offline-mode handler to also process the
-                    // LoginStart and short-circuit to "ready/offline".
+                    awaitingOutcome.put(ch, username);
+                    final String unameFinal = username;
+                    ch.closeFuture().addListener(f -> {
+                        // If the channel closed while we were still
+                        // awaiting an outcome, the Mojang check failed.
+                        if (awaitingOutcome.remove(ch) != null) {
+                            recentFailures.put(unameFinal.toLowerCase(),
+                                System.currentTimeMillis() + FAILURE_COOLDOWN_MS);
+                        }
+                    });
                     event.setCancelled(true);
                 } catch (Throwable t) {
                     plugin.getLogger().warning("Native handshake failed for " + username
                         + " — falling back to offline path: " + t.getMessage());
                     driven.remove(ch);
+                }
+            }
+
+            @Override
+            public void onPacketSend(PacketSendEvent event) {
+                // Mojang session check succeeded → vanilla is about to send
+                // LOGIN_SUCCESS. Mark the channel as resolved so the
+                // close-future listener does NOT cache a false-positive
+                // failure when the player later disconnects normally.
+                if (event.getPacketType() != PacketType.Login.Server.LOGIN_SUCCESS) return;
+                Object channelObj = event.getChannel();
+                if (channelObj instanceof Channel ch) {
+                    awaitingOutcome.remove(ch);
                 }
             }
         };
