@@ -108,16 +108,19 @@ public final class PreLoginListener implements Listener {
         Optional<Account> existing = auth.findAccount(username);
         boolean isPremium = premiumUuid.isPresent() && premiumUuid.get().equals(connectingUuid);
 
-        // 2) Anti-impersonation: someone connecting with a name that Mojang
-        // owns but with a different UUID. Mirrors PremiumHandshake policy:
-        // an offline connection on a premium name is allowed ONLY when there
-        // is already an offline account registered with that username (the
-        // pre-existing claim). In every other case (fresh name OR existing
-        // premium record) we expect the encryption handshake to have fired,
-        // so an offline UUID here means an impersonation attempt.
+        // 2) Anti-impersonation: kick offline UUIDs on premium names ONLY
+        // when our DB already records that name's premium owner (matches
+        // PremiumHandshake policy). Until the owner has been seen / claimed,
+        // the name remains freely claimable offline.
         if (premiumUuid.isPresent() && !isPremium) {
-            boolean offlineClaimExists = existing.isPresent() && !existing.get().isPremium();
-            if (!offlineClaimExists) {
+            boolean ownerKnown;
+            try {
+                Optional<Account> ownerRecord = plugin.database().findByUuid(premiumUuid.get());
+                ownerKnown = ownerRecord.isPresent() && ownerRecord.get().isPremium();
+            } catch (Exception e) {
+                ownerKnown = false;
+            }
+            if (ownerKnown) {
                 ev.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
                     mm.deserialize(plugin.messages().raw("prelogin.account-locked")));
                 return;

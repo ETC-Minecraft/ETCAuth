@@ -68,23 +68,21 @@ public final class RegisterCommand implements CommandExecutor {
 
         // DB I/O off-main
         plugin.async(() -> {
-            // Final guard against name-squatting: if Mojang says this name
-            // is premium AND there is no pre-existing offline claim on it,
-            // refuse to register. The native handshake should have already
-            // forced the premium owner through encryption; reaching /register
-            // on a fresh premium name means somebody is trying to squat.
+            // Block registration only if Mojang says the name is premium
+            // AND that owner has already been recorded in our DB (claimed).
+            // Until then, non-premium users can register the name freely.
             try {
                 Optional<UUID> premium = auth.resolvePremiumUuid(player.getName());
                 if (premium.isPresent()) {
-                    boolean offlineClaimExists;
+                    boolean ownerKnown;
                     try {
-                        Optional<com.etcmc.etcauth.database.Account> existing =
-                            plugin.database().findByUsername(player.getName());
-                        offlineClaimExists = existing.isPresent() && !existing.get().isPremium();
+                        Optional<com.etcmc.etcauth.database.Account> ownerRecord =
+                            plugin.database().findByUuid(premium.get());
+                        ownerKnown = ownerRecord.isPresent() && ownerRecord.get().isPremium();
                     } catch (Exception e) {
-                        offlineClaimExists = false;
+                        ownerKnown = false;
                     }
-                    if (!offlineClaimExists) {
+                    if (ownerKnown) {
                         plugin.sync(player, () -> plugin.messages().send(player,
                             "register.name-is-premium",
                             Map.of("player", player.getName())));

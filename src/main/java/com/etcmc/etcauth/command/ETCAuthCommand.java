@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 public final class ETCAuthCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBS =
-        List.of("reload", "info", "unregister", "forcelogin", "premiumcheck", "history");
+        List.of("reload", "info", "unregister", "forcelogin", "premiumcheck", "history", "claim");
 
     private final ETCAuth plugin;
     private final AuthManager auth;
@@ -48,6 +48,7 @@ public final class ETCAuthCommand implements CommandExecutor, TabCompleter {
             case "forcelogin"    -> handleForceLogin(sender, args);
             case "premiumcheck"  -> handlePremiumCheck(sender, args);
             case "history"       -> handleHistory(sender, args);
+            case "claim"         -> handleClaim(sender, args);
             default              -> plugin.messages().send(sender, "admin.usage");
         }
         return true;
@@ -170,6 +171,51 @@ public final class ETCAuthCommand implements CommandExecutor, TabCompleter {
         try { return Integer.parseInt(s); } catch (NumberFormatException e) { return def; }
     }
 
+    /**
+     * Pre-seeds a premium owner record so the native handshake will engage
+     * for that name on the very first connection. Resolves the UUID via
+     * Mojang and inserts (or upgrades) the account row as premium+locked
+     * with no password (premium accounts don't use one).
+     */
+    private void handleClaim(CommandSender sender, String[] args) {
+        if (args.length < 2) { plugin.messages().send(sender, "admin.usage"); return; }
+        String name = args[1];
+        plugin.async(() -> {
+            Optional<UUID> premium;
+            try {
+                premium = auth.resolvePremiumUuid(name);
+            } catch (Exception e) {
+                plugin.sync(() -> sender.sendMessage("Mojang lookup failed: " + e.getMessage()));
+                return;
+            }
+            if (premium.isEmpty()) {
+                plugin.sync(() -> plugin.messages().send(sender,
+                    "admin.premium-check-not-premium", Map.of("player", name)));
+                return;
+            }
+            UUID realUuid = premium.get();
+            try {
+                Optional<Account> existing = plugin.database().findByUuid(realUuid);
+                long now = System.currentTimeMillis();
+                Account claimed = new Account(
+                    realUuid, name, null, true, false,
+                    null, 0L,
+                    existing.map(Account::getCreatedEpochMs).orElse(now),
+                    null);
+                if (existing.isPresent()) {
+                    plugin.database().update(claimed);
+                } else {
+                    plugin.database().insert(claimed);
+                }
+                plugin.sync(() -> sender.sendMessage(
+                    "§aClaimed §e" + name + "§a (§7" + realUuid
+                        + "§a) as premium. Native handshake will now engage on join."));
+            } catch (Exception e) {
+                plugin.sync(() -> sender.sendMessage("§cClaim failed: " + e.getMessage()));
+            }
+        });
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
         if (!sender.hasPermission("etcauth.admin")) return List.of();
@@ -178,7 +224,7 @@ public final class ETCAuthCommand implements CommandExecutor, TabCompleter {
                 .filter(s -> s.startsWith(args[0].toLowerCase()))
                 .collect(Collectors.toList());
         }
-        if (args.length == 2 && Arrays.asList("info", "unregister", "forcelogin", "premiumcheck", "history")
+        if (args.length == 2 && Arrays.asList("info", "unregister", "forcelogin", "premiumcheck", "history", "claim")
                 .contains(args[0].toLowerCase())) {
             return plugin.getServer().getOnlinePlayers().stream()
                 .map(Player::getName)

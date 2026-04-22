@@ -178,30 +178,23 @@ public final class PremiumHandshake {
                 }
                 if (premium.isEmpty()) return; // unknown name -> let vanilla handle as offline
 
-                // Policy: drive the encryption handshake whenever Mojang says
-                // the name is premium AND we have no pre-existing OFFLINE
-                // claim on that username. This way:
-                //   - On a fresh DB, the legitimate premium owner can join
-                //     and instantly auto-login (their first connection IS
-                //     what records them as premium).
-                //   - If a non-premium player previously registered that
-                //     username offline, they keep their offline access until
-                //     the real owner joins — at which point the premium
-                //     handshake succeeds, the real UUID is verified by
-                //     Mojang, and the existing claim flow promotes/locks
-                //     the account.
-                //   - If the DB already has the premium owner recorded, we
-                //     of course also drive the handshake (covered by the
-                //     same rule: the existing entry is premium, not offline).
-                boolean offlineClaimExists;
+                // Only force the encryption handshake when our DB already
+                // knows the premium owner of this name. Until that owner
+                // has been recorded (via a previous successful join, or
+                // pre-seeded by an admin with /etcauth claim <name>), the
+                // name is freely claimable offline. Forcing the handshake
+                // unconditionally on every Mojang-premium name would kick
+                // legitimate non-premium users with the dreaded "sesión no
+                // es válida" since their client has no Mojang session.
+                boolean ownerKnown;
                 try {
-                    var acc = plugin.database().findByUsername(username);
-                    offlineClaimExists = acc.isPresent() && !acc.get().isPremium();
+                    var acc = plugin.database().findByUuid(premium.get());
+                    ownerKnown = acc.isPresent() && acc.get().isPremium();
                 } catch (Throwable t) {
-                    offlineClaimExists = false;
+                    ownerKnown = false;
                 }
-                if (offlineClaimExists) {
-                    driven.remove(channelObj); // let the existing offline account log in
+                if (!ownerKnown) {
+                    driven.remove(channelObj); // allow normal offline path
                     return;
                 }
 
